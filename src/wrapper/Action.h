@@ -19,7 +19,6 @@
 #include <utility>
 #include <vector>
 #include <set>
-#include "Session.h"
 
 namespace elladan {
 namespace jsondb {
@@ -232,7 +231,7 @@ template<> void ReadAction::doActionId<UUID>(UUID& ele, bool autoGen);
 class WriteAction
 {
 public:
-    WriteAction(json::Json_t obj = json::Json_t(), Session* session = nullptr) : doc(obj), _session(session) {}
+    WriteAction(json::Json_t obj = json::Json_t()) : doc(obj) {}
 
     template<typename T>
     typename std::enable_if<has_persist<T>::value, void>::type
@@ -344,7 +343,6 @@ public:
     std::string path;
 
 private:
-    Session* _session;
     json::JsonObject_t validateDoc(const std::string& error);
 };
 
