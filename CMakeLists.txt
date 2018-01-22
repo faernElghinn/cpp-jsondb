@@ -6,24 +6,45 @@
 cmake_minimum_required(VERSION 2.8) # http://www.cmake.org/cmake/help/cmake-2-8-docs.html#command:cmake_minimum_required
 
 # Sets the name of the project. Additionally this sets the variables <projectName>_BINARY_DIR and <projectName>_SOURCE_DIR to the respective values.
-project ("jsonDb") # http://www.cmake.org/cmake/help/cmake-2-8-docs.html#command:project
+project ("elladanJsonDb") # http://www.cmake.org/cmake/help/cmake-2-8-docs.html#command:project
 
 file(GLOB_RECURSE source "src/*.cpp")
 file(GLOB_RECURSE header "src/*.h")
 
 # By default we'll be a debug app
 # set(CMAKE_BUILD_TYPE DEBUG)
-set(CMAKE_CXX_FLAGS "-std=c++11 ")
+set(CMAKE_CXX_FLAGS "-std=c++14 ")
 
-find_library(jansson jansson)
+set (PROJECT_INCLUDE_DIR ${PROJECT_SOURCE_DIR}/include)
+set (PROJECT_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src)
 
-# This tells cmake that we want to create an executable called 'terrawt' and the source files are just 'main.cpp'
-#SET_SOURCE_FILES_PROPERTIES( ${source} ${header} PROPERTIES LANGUAGE CXX )
-add_library(jsonDb STATIC ${source} )
-target_link_libraries(jsonDb jansson)
+include_directories("${PROJECT_BINARY_DIR}")
+include_directories("${PROJECT_INCLUDE_DIR}")
+
+# This tells cmake that we want to create a library called 'jsonDb'.
+SET_SOURCE_FILES_PROPERTIES( ${source} ${header} PROPERTIES LANGUAGE CXX )
+add_library(ElladanJsonDb STATIC ${source} )
+
+find_library(ElladanJson ElladanJson)
+find_library(ElladanHelper ElladanHelper)
+target_link_libraries(ElladanJsonDb ElladanJson ElladanHelper)
 
 # Export header
-install(DIRECTORY src/ DESTINATION include/jsonDb
+install(DIRECTORY src/ DESTINATION include/elladan/jsonDb
         FILES_MATCHING PATTERN "*.h")
-install(TARGETS jsonDb ARCHIVE DESTINATION lib)
+install(TARGETS ElladanJsonDb ARCHIVE DESTINATION lib)
 
+
+enable_testing()
+
+add_executable(dbTest test/DbTest.cpp)
+target_link_libraries(dbTest ElladanJsonDb ElladanJson ElladanHelper)
+add_test(dbTest dbTest)
+
+add_executable(SFINAETest test/SFINAETest.cpp)
+target_link_libraries(SFINAETest ElladanJsonDb ElladanJson ElladanHelper)
+add_test(SFINAETest SFINAETest)
+
+add_executable(SerTest test/SerializationTest.cpp)
+target_link_libraries(SerTest ElladanJsonDb ElladanJson ElladanHelper)
+add_test(SerTest SerTest)
