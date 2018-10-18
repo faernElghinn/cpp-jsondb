@@ -14,6 +14,7 @@
 
 #include "../JsonDb.h"
 #include "../Sort.h"
+#include "../Clause.h"
 #include "Action.h"
 
 namespace elladan {
@@ -43,7 +44,7 @@ public:
            toDeserializeList.emplace_back(_ctl.load(_classPath, _id));
        else
            // Load all item.
-           toDeserializeList = _ctl.loadConditionnal(_classPath, _clause, _sort);
+           toDeserializeList = _ctl.loadConditionnal(_classPath, &_clause, _sort);
 
        std::vector<C> retVal;
        for (auto ite : toDeserializeList)
@@ -67,7 +68,7 @@ public:
         }
         else {
             // Load all json.
-            for (auto ite : _ctl.loadConditionnal(_classPath, _clause, _sort))
+            for (auto ite : _ctl.loadConditionnal(_classPath, &_clause, _sort))
                 return deserial(std::dynamic_pointer_cast<json::JsonObject>(ite));
         }
         return C ();
@@ -76,33 +77,39 @@ public:
     size_t count() {
         size_t retVal;
 
-        if (_id->getType() != json::JSON_NONE)
-            retVal = (_ctl.count(_classPath, _id));
-        else
-            // Load all json.
-            retVal = _ctl.countConditionnal(_classPath, _clause);
-
+        // if (_clause))
+            retVal = _ctl.countConditionnal(_classPath, &_clause);
+        // else
+        //     retVal = (_ctl.count(_classPath, _id));
+            
         return retVal;
     }
 
 
     // Set the id to search for.
     template<typename T>
-    ReadStatement& id(T id) {
-        _id = json::toJson(id);
+    ReadStatement& id(T idx) {
+        _id = json::toJson(idx);
         return *this;
     }
 
-    ReadStatement<C>& where(std::shared_ptr<jsondb::Clause> clause) {
+    ReadStatement<C>& where(const jsondb::Clause& clause) {
         _clause = clause;
         return *this;
     }
+    ReadStatement<C>& where(jsondb::Clause&& clause) {
+        _clause = std::move(clause);
+        return *this;
+    }
+
+    // FIXME : order result.
+    // FIXME : add count/offset.
 
 protected:
     json::Json_t _id;
     std::string _classPath;
     jsondb::JsonDb& _ctl;
-    std::shared_ptr<jsondb::Clause> _clause;
+    jsondb::Clause _clause;
     jsondb::Sort _sort;
 
 };

@@ -8,7 +8,6 @@
 #include <elladan/json/json.h>
 #include <elladan/UUID.h>
 #include <cstdlib>
-#include <map>
 #include <memory>
 #include <string>
 #include <vector>
@@ -30,13 +29,13 @@ static std::string test_json_db_setup(){
     id = UUID::generateUUID();
 
     root = std::make_shared<JsonObject>();
-    root->value["id"] = std::make_shared<JsonString>(id.toString());
+    root->value["id"] = std::make_shared<JsonUUID>(id);
     root->value["test1"] = std::make_shared<JsonBool>(true);
     root->value["test2"] = std::make_shared<JsonBool>(false);
 
     id2 = UUID::generateUUID();
     root2 = std::make_shared<JsonObject>();
-    root2->value["id"] = std::make_shared<JsonString>(id2.toString());
+    root2->value["id"] = std::make_shared<JsonUUID>(id2);
     root2->value["test1"] = std::make_shared<JsonBool>(false);
     root2->value["test2"] = std::make_shared<JsonBool>(true);
 
@@ -47,8 +46,8 @@ static std::string test_json_db_save(){
     std::string retVal;
 
     JsonDb db;
-    db.save(tableName, std::make_shared<JsonString>(id.toString()), root);
-    db.save(tableName, std::make_shared<JsonString>(id2.toString()), root2);
+    db.save(tableName, std::make_shared<JsonUUID>(id), root);
+    db.save(tableName, std::make_shared<JsonUUID>(id2), root2);
 
     return retVal;
 }
@@ -57,7 +56,7 @@ static std::string test_json_db_load_one(){
     std::string retVal;
     JsonDb db;
 
-    Json_t read = db.load(tableName, std::make_shared<json::JsonString>(id.toString()));
+    Json_t read = db.load(tableName, std::make_shared<json::JsonUUID>(id));
     if (!read)
         retVal += "\n Could not import saved data";
     else if (read->getType() != JSON_OBJECT)
@@ -68,9 +67,9 @@ static std::string test_json_db_load_one(){
         if (obj->value.size() != 3)
             retVal += "\n Wrong number of data";
 
-        if (obj->value["id"]->getType() != JSON_STRING)
+        if (obj->value["id"]->getType() != JSON_UUID)
             retVal += "\n Wrong type for id";
-        else if (std::dynamic_pointer_cast<JsonString>(obj->value["id"])->value != id.toString())
+        else if (std::dynamic_pointer_cast<JsonUUID>(obj->value["id"])->value != id)
             retVal += "\n Wrong id";
 
         if (obj->value["test1"]->getType() != JSON_BOOL)
@@ -126,7 +125,7 @@ static std::string test_json_db_load_save(){
     nO->value["test2"] = std::make_shared<JsonBool>(false);
     db.save(tableName, nO->value["id"], nO);
 
-    Json_t read = db.load(tableName, toJson(id));
+    Json_t read = db.load(tableName, nO->value["id"]);
     if (!read || read->getType() == JSON_NONE)
         retVal += "\n Could not import just saved data";
 
@@ -137,11 +136,11 @@ static std::string test_json_search(){
     std::string retVal;
 
     JsonDb db;
-    db.addIndex(tableName, "id", true, true);
+    db.setId(tableName, elladan::json::toJson(UUID().toString()));
     db.scanIndex();
 
-    auto res = db.loadConditionnal(tableName, Clause::CmpEQ("id", json::toJson(id)));
-
+    Clause cla(CmpClause(CmpClause::EQ, "/id", json::toJson(id)));
+    auto res = db.loadConditionnal(tableName, &cla);
     if (res.size() != 1)
         retVal += "\n Could not find idx";
 
@@ -152,19 +151,24 @@ static std::string test_json_sort(){
     std::string retVal;
 
     JsonDb db;
-    db.addIndex(tableName, "id");
+    db.setId(tableName, elladan::json::toJson(UUID().toString()));
     db.scanIndex();
 
-    Sort sort("id", true);
+    Sort sort("/id", true);
     auto res = db.loadConditionnal(tableName, nullptr, sort);
 
-    // FIXME: check result
+    auto last = UUID();
+    for (auto ite : res) {
+        if (last < ite->toObject()->value.at("id")->toUUID()->value)
+            last = ite->toObject()->value.at("id")->toUUID()->value;
+        else
+            return "\nInvalid sort order";
+    }
 
     return retVal;
 }
 
-
-// FIXME: test search, conditionnal, multiple value, preload.
+// FIXME: test search, conditional, multiple value, preload.
 
 int main(int argc, char **argv) {
     bool valid = true;

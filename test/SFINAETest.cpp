@@ -36,26 +36,37 @@ static std::string test_SFINAE(){
 
     if (is_vector<int>::value) retVal += "\n int mapped as an vector";
     if (is_map<int>::value) retVal += "\n int mapped as an map";
+    if (is_vmap<int>::value) retVal += "\n int mapped as an cmap";
     if (is_set<int>::value) retVal += "\n int mapped as an set";
     if (has_persist<int>::value) retVal += "\n int mapped as has persist";
 
-    if (is_vector<std::map<int,int>>::value) retVal += "\n map mapped as an vector";
-    if (!is_map<std::map<int,int>>::value) retVal += "\n map is not mapped as an map";
-    if (is_set<std::map<int,int>>::value) retVal += "\n map mapped as an set";
-    if (has_persist<std::map<int,int>>::value) retVal += "\n map mapped as has persist";
-
-    if (is_vector<std::set<int>>::value) retVal += "\n set mapped as an vector";
-    if (is_map<std::set<int>>::value) retVal += "\n set mapped as an map";
-    if (!is_set<std::set<int>>::value) retVal += "\n set not mapped as an set";
-    if (has_persist<std::set<int>>::value) retVal += "\n set mapped as has persist";
-
     if (!is_vector<std::vector<int>>::value) retVal += "\n vector not mapped as an vector";
     if (is_map<std::vector<int>>::value) retVal += "\n vector mapped as an map";
+    if (is_vmap<std::vector<int>>::value) retVal += "\n vector mapped as an cmap";
     if (is_set<std::vector<int>>::value) retVal += "\n vector mapped as an set";
     if (has_persist<std::vector<int>>::value) retVal += "\n vector mapped as has persist";
 
+    if (is_vector<std::map<int,int>>::value) retVal += "\n map mapped as an vector";
+    if (!is_map<std::map<int,int>>::value) retVal += "\n map is not mapped as an map";
+    if (is_vmap<std::map<int,int>>::value) retVal += "\n map is mapped as an vmap";
+    if (is_set<std::map<int,int>>::value) retVal += "\n map mapped as an set";
+    if (has_persist<std::map<int,int>>::value) retVal += "\n map mapped as has persist";
+
+    if (is_vector<elladan::VMap<int,int>>::value) retVal += "\n vmap mapped as an vector";
+    if (is_map<elladan::VMap<int,int>>::value) retVal += "\n vmap mapped as an map";
+    if (!is_vmap<elladan::VMap<int,int>>::value) retVal += "\n vmap not mapped as an vmap";
+    if (is_set<elladan::VMap<int,int>>::value) retVal += "\n vmap mapped as an set";
+    if (has_persist<elladan::VMap<int,int>>::value) retVal += "\n vmap mapped as has persist";
+
+    if (is_vector<std::set<int>>::value) retVal += "\n set mapped as an vector";
+    if (is_map<std::set<int>>::value) retVal += "\n set mapped as an map";
+    if (is_vmap<std::set<int>>::value) retVal += "\n set mapped as an cmap";
+    if (!is_set<std::set<int>>::value) retVal += "\n set not mapped as an set";
+    if (has_persist<std::set<int>>::value) retVal += "\n set mapped as has persist";
+
     if (is_vector<Empty>::value) retVal += "\n Bidon mapped as an vector";
     if (is_map<Empty>::value) retVal += "\n Bidon mapped as an map";
+    if (is_vmap<Empty>::value) retVal += "\n Bidon mapped as an vmap";
     if (is_set<Empty>::value) retVal += "\n Bidon mapped as an set";
     if (!has_persist<Empty>::value) retVal += "\n Bidon not mapped as has persist";
 

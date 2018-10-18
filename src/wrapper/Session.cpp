@@ -14,10 +14,13 @@ namespace elladan {
 namespace jsondb {
 
 // Register a class to the db.
-void Session::mapClassImp(const std::string& name, size_t hashCode, bool caseSensitive) {
+void Session::mapClassImp(const std::string& name, const std::type_info* type, bool caseSensitive, json::Json_t defaultValue) {
     assert(!name.empty());
-    _className[hashCode] = name;
-    _impl.addIndex(name, ID, true, caseSensitive);
+
+    if (!_className.insert(type, name))
+       throw elladan::Exception("Class already mapped");
+
+    _impl.setId(name, defaultValue, caseSensitive);
     DEBUG("Mapped class %s", name.c_str());
 }
 

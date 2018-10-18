@@ -13,7 +13,8 @@ file(GLOB_RECURSE header "src/*.h")
 
 # By default we'll be a debug app
 # set(CMAKE_BUILD_TYPE DEBUG)
-set(CMAKE_CXX_FLAGS "-std=c++14 ")
+set(CMAKE_CXX_FLAGS "-std=c++14 -Wshadow-compatible-local")
+set(CMAKE_CXX_FLAGS "-std=c++14 -Wshadow")
 
 set (PROJECT_INCLUDE_DIR ${PROJECT_SOURCE_DIR}/include)
 set (PROJECT_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src)
@@ -45,6 +46,10 @@ add_executable(SFINAETest test/SFINAETest.cpp)
 target_link_libraries(SFINAETest ElladanJsonDb ElladanJson ElladanHelper)
 add_test(SFINAETest SFINAETest)
 
-add_executable(SerTest test/SerializationTest.cpp)
-target_link_libraries(SerTest ElladanJsonDb ElladanJson ElladanHelper)
-add_test(SerTest SerTest)
+add_executable(serTest test/SerializationTest.cpp)
+target_link_libraries(serTest ElladanJsonDb ElladanJson ElladanHelper)
+add_test(serTest SerTest)
+
+add_executable(actionTest test/ActionTest.cpp)
+target_link_libraries(actionTest ElladanJsonDb ElladanJson ElladanHelper)
+add_test(actionTest actionTest)

@@ -7,23 +7,15 @@
 
 #include "Action.h"
 #include "../JsonDb.h"
+#include "../Index.h"
+
+#include <cassert>
 
 namespace elladan {
 namespace jsondb {
 
 using namespace json;
-
-
-#define SpecializeReadId(Type) \
-template <> \
-void ReadAction::doActionId<Type> (Type& ele, bool autoGen){ \
-    doAction(ele, ID);\
-}
-SpecializeReadId(int);
-SpecializeReadId(std::string);
-SpecializeReadId(UUID);
-#undef SpecializeReadId
-
+class IdIndex;
 inline void ReadAction::validateDoc(const std::string& error) {
     if (!doc || doc->getType() != json::JSON_OBJECT)
         throw Exception("Invalid " + error + " read - " + path + " is not an object");
@@ -36,23 +28,44 @@ inline json::Json_t ReadAction::getValue(const std::string& name, const std::str
     return ite->second;
 }
 
+//json::JsonObject_t WriteAction::validateDoc(const std::string& error) {
+//    if (!doc || doc->getType() != json::JSON_OBJECT)
+//        throw Exception("Invalid " + error + " write - " + path + " is not an object");
+//    return std::dynamic_pointer_cast<json::JsonObject>(doc);
+//}
 
-//// FIXME: manage autoGen
+
+json::JsonObject_t DeleteAction::validateDoc(const std::string& error) {
+    if (!doc || doc->getType() != json::JSON_OBJECT)
+        throw Exception("Invalid " + error + " delete - " + path + " is not an object");
+    return std::dynamic_pointer_cast<json::JsonObject>(doc);
+}
+
+
+#define SpecializeReadId(Type) \
+template <> \
+void ReadAction::doActionId<Type> (Type& ele, bool autoGen){ \
+    doAction(ele, ID);\
+}
+SpecializeReadId(int);
+SpecializeReadId(std::string);
+SpecializeReadId(UUID);
+#undef SpecializeReadId
+
+
 #define SpecializeWriteId(Type) \
 template <> \
 void WriteAction::doActionId<Type>(Type& ele, bool autoGen){ \
+    assert(_idx.get() != nullptr);\
+    if (autoGen && elladan::json::toJson(ele) == _idx->defaultValue()) {\
+        ele = json::fromJson<Type>(_idx->getNextLogical());\
+    }\
     doAction(ele, ID);\
 }
 SpecializeWriteId(int);
 SpecializeWriteId(std::string);
 SpecializeWriteId(UUID);
 #undef SpecializeWrite
-json::JsonObject_t WriteAction::validateDoc(const std::string& error) {
-    if (!doc || doc->getType() != json::JSON_OBJECT)
-        throw Exception("Invalid " + error + " write - " + path + " is not an object");
-    return std::dynamic_pointer_cast<json::JsonObject>(doc);
-}
-
 
 
 #define SpecializeDeleteId(Type) \
@@ -64,11 +77,8 @@ SpecializeDeleteId(int);
 SpecializeDeleteId(std::string);
 SpecializeDeleteId(UUID);
 #undef SpecializeDeleteId
-json::JsonObject_t DeleteAction::validateDoc(const std::string& error) {
-    if (!doc || doc->getType() != json::JSON_OBJECT)
-        throw Exception("Invalid " + error + " delete - " + path + " is not an object");
-    return std::dynamic_pointer_cast<json::JsonObject>(doc);
-}
+
+
 
 
 

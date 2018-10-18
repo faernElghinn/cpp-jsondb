@@ -16,6 +16,7 @@
 #include <string>
 
 #include "../src/wrapper/Action.h"
+#include "../src/wrapper/Session.h"
 
 using namespace elladan::json;
 using namespace elladan::jsondb;
@@ -52,6 +53,8 @@ public:
         field(a, vi, "vi");
         field(a, ms, "ms");
         field(a, mi, "mi");
+        field(a, vms, "vms");
+        field(a, vmi, "vmi");
     }
 
     Simple s;
@@ -62,6 +65,8 @@ public:
     std::vector<int> vi;
     std::map<std::string, Simple> ms;
     std::map<std::string, int> mi;
+    std::map<std::string, Simple> vms;
+    std::map<std::string, int> vmi;
 };
 
 static std::string test_simple(){
@@ -130,13 +135,19 @@ static std::string test_complex(){
     input.ms["3"] = Simple(11);
     input.ms["4"] = Simple(12);
     input.ms["5"] = Simple(13);
+    input.vmi["7"] = 14;
+    input.vmi["8"] = 15;
+    input.vmi["9"] = 16;
+    input.vms["10"] = Simple(17);
+    input.vms["11"] = Simple(18);
+    input.vms["12"] = Simple(19);
 
     // FIXME: update for complex.
     WriteAction wr(std::make_shared<JsonObject>());
     try{
         input.persist(wr);
 
-        auto res = wr.doc->getChild(wr.doc, "s/val");
+        auto res = wr.doc->getChild(wr.doc, "/s/val");
         if (res.empty() || res.front()->getType() != JSON_INTEGER)
             retVal += "\n Did not serialize complex value ";
         else if (res.front()->toInt()->value != 1)
@@ -166,10 +177,89 @@ static std::string test_complex(){
     return retVal;
 }
 
+class ID_i{
+public:
+    ID_i() : i(0) {}
+    template <typename A>
+    void persist(A& a) {
+        id(a, i, true);
+    }
+    int i;
+};
+class ID_s{
+public:
+    template <typename A>
+    void persist(A& a) {
+        id(a, s, true);
+    }
+    std::string s;
+};
+class ID_u{
+public:
+    template <typename A>
+    void persist(A& a) {
+        id(a, u, true);
+    }
+    elladan::UUID u;
+};
+
+std::string test_autoId(){
+    std::string retVal;
+
+    Session ses;
+
+    ses.mapClass<ID_i>("int", elladan::json::toJson(0));
+    int last = 0;
+    for (int i = 0; i < 100; i++) {
+        ID_i v;
+        ses.save(v);
+        if (v.i == 0)
+            retVal += "\nInvalid int id, value not set";
+        else if (v.i <= last)
+            retVal += "\nInvalid new id, value already in use";
+        else continue;
+
+        last = v.i;
+
+        break;
+    }
+    if (ses.find<ID_i>().count() != 100)
+        retVal += "\nInvalid int id, not all created (likely overwritten)";
+
+    ses.mapClass<ID_s>("string", elladan::json::toJson(""));
+    for (int i = 0; i < 100; i++) {
+        ID_s v;
+        ses.save(v);
+        if (v.s.size() == 0) {
+            retVal += "\nInvalid string id, value not set";
+            break;
+        }
+    }
+    if (ses.find<ID_s>().count() != 100)
+        retVal += "\nInvalid string id, not all created (likely overwritten)";
+
+    ses.mapClass<ID_u>("uuid", elladan::json::toJson(elladan::UUID()));
+    for (int i = 0; i < 100; i++) {
+        ID_u v;
+        ses.save(v);
+        if (v.u.cmp(elladan::UUID()) == 0) {
+            retVal += "\nInvalid uuid id, value not set";
+            break;
+        }
+    }
+    if (ses.find<ID_u>().count() != 100)
+        retVal += "\nInvalid uuid id, not all created (likely overwritten)";
+
+    return retVal;
+
+}
+
+
 int main(int argc, char **argv) {
     bool valid = true;
     EXE_TEST(test_simple());
     EXE_TEST(test_complex());
+    EXE_TEST(test_autoId());
     return valid ? 0 : -1;
 }
 
