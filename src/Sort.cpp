@@ -1,66 +1,77 @@
-/*
- * Sort.cpp
- *
- *  Created on: May 26, 2017
- *      Author: daniel
- */
-
 #include "Sort.h"
 
+#include <elladan/json/json.h>
+#include <elladan/Stringify.h>
 #include <algorithm>
-#include <memory>
+#include <string>
+#include <vector>
 
 namespace elladan {
 namespace jsondb {
 
+const json::Json* Sort::getSingle(const Ele& p, const json::Json& json, json::Json& keep) const {
+   const json::Json* e = &NoValue;
+   json::Json tmp;
+   auto list = json.get(p.path);
+   if (list.size() >= 1) {
+      e = list.front();
+      if (list.size() > 1) {
+         switch (p.mod) {
+            case MAX:
+               for (int i = 1; i < list.size(); ++i) {
+                  auto o = list[i];
+                  if (p.mod & IGNORE_CASE) {
+                     if (const std::string* c = o->cast<std::string>()) {
+                        tmp = elladan::toLower(*c);
+                        o = &tmp;
+                     }
+                  }
+                  if (*e < *o) {
+                     if (o == &tmp) {
+                        keep = tmp;
+                        o = &keep;
+                     }
+                     e = o;
+                  }
+               }
+               break;
 
-Sort::Sort(){}
-Sort::Sort(const std::string& path, bool asc){
-    add(path, asc);
+            case MIN:
+               for (int i = 1; i < list.size(); ++i) {
+                  auto o = list[i];
+                  if (p.mod & IGNORE_CASE) {
+                     if (const std::string* c = o->cast<std::string>()) {
+                        tmp = elladan::toLower(*c);
+                        o = &tmp;
+                     }
+                  }
+                  if (*e > *o) {
+                     if (o == &tmp) {
+                        keep = tmp;
+                        o = &keep;
+                     }
+                     e = o;
+                  }
+               }
+               break;
+         }
+      }
+   }
+   return e;
 }
-Sort::~Sort(){}
 
-void Sort::add(const std::string& path, bool asc){
-    _sorters.push_back(Sorter(path, asc));
+void Sort::sort(std::vector<json::Json>& valueToSort) const {
+   std::stable_sort(valueToSort.begin(), valueToSort.end(), [&](const json::Json& lhs, const json::Json& rhs) -> bool {
+      for (auto& p : pathes) {
+         auto l = getSingle(p, lhs, lhsTmp);
+         auto r = getSingle(p, rhs, rhsTmp);
+
+         if (l < r) return p.asc;
+         if (r < l) return !p.asc;
+      }
+      return false;
+   });
 }
 
-// Sort the elements according to the defined rules.
-void Sort::doSort(std::vector<json::Json_t>& results) const {
-    if (_sorters.empty())
-        return;
-
-    struct CustomLess {
-        const std::vector<Sorter>& sorters;
-        CustomLess(const std::vector<Sorter>& s) : sorters(s) {}
-
-        bool operator() (const json::Json_t a, const json::Json_t b) const {
-            for (auto& ite : sorters) {
-                auto left_list  = a->getChild(a, ite.first);
-                auto right_list = b->getChild(b, ite.first);
-
-                const json::Json* left = nullptr;
-                if (!left_list.empty())
-                    left = left_list.front().get();
-
-                const json::Json* right = nullptr;
-                if (!right_list.empty())
-                    right = right_list.front().get();
-
-                if (!left && !right) return ite.second;
-                if (!left || !right) return !left ^ !ite.second;
-
-                int i = left->cmp(right);
-                if (i > 0) return !ite.second;
-                if (i < 0) return ite.second;
-            }
-            return false;
-        }
-    };
-
-    CustomLess customLess(_sorters);
-
-    std::sort(results.begin(), results.end(), customLess);
 }
-
-
-} } // namespace elladan::jsondb
+} // namespace elladan::jsondb

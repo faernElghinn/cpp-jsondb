@@ -1,36 +1,38 @@
-/*
- * Sort.h
- *
- *  Created on: May 26, 2017
- *      Author: daniel
- */
-
 #pragma once
 
 #include <elladan/json/json.h>
+#include <elladan/Stringify.h>
+#include <algorithm>
 #include <string>
-#include <utility>
 #include <vector>
 
 namespace elladan {
 namespace jsondb {
 
-class Sort
-{
-public:
-    Sort();
-    Sort(const std::string& path, bool asc = true);
-    virtual ~Sort();
 
-    void add(const std::string& path, bool asc = true);
+struct Sort {
+   enum Modifer {
+      DEFAULT = 0,
+      IGNORE_CASE = 1,
+      MIN = 2,
+      MAX = 4
+   };
+   struct Ele{
+      std::string path;
+      bool asc;
+      Modifer mod;
+   };
+   std::vector<Ele> pathes;
 
-    // Sort the elements according to the defined rules.
-    void doSort(std::vector<json::Json_t>& results) const;
+   void sort(std::vector<json::Json>& valueToSort) const;
 
 protected:
-    typedef std::pair<std::string, bool> Sorter;
-    std::vector<Sorter> _sorters;
+   const json::Json* getSingle(const Ele& p, const json::Json& json, json::Json& keep) const;
+   static json::Json NoValue;
+   mutable json::Json lhsTmp;
+   mutable json::Json rhsTmp;
 };
+
 
 
 } } // namespace elladan::jsondb

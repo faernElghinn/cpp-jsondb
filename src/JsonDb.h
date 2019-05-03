@@ -1,95 +1,102 @@
-/*
- * JsonDb.h
- *
- *  Created on: May 18, 2017
- *      Author: daniel
- */
-
 #pragma once
 
 #include <elladan/json/json.h>
-#include <elladan/VMap.h>
-#include <condition_variable>
-#include <mutex>
-#include <set>
+#include <functional>
+#include <iostream>
+#include <optional>
 #include <string>
 #include <vector>
-
-#include "Index.h"
-#include "Sort.h"
 
 namespace elladan {
 namespace jsondb {
 
-#if 0
-#define DEBUG(MSG, ...) printf("[debug] %s : " MSG "\n", __PRETTY_FUNCTION__, __VA_ARGS__)
-#else
-#define DEBUG(MSG, ...) do {} while (0)
-#endif
+class Query;
+constexpr static char ID[] = "__id";
 
-constexpr static char ID[] = "id";
-constexpr static char ID_PATH[] = "/id";
 
-class Clause;
+//
+//class Fstream : public std::fstream{
+//public:
+//   Fstream (const std::string& fname )
+//};
+//
+//int main()
+//{
+//    int posix_handle = ::_fileno(::fopen("test.txt", "r"));
+//
+//    ifstream ifs(::_fdopen(posix_handle, "r"));
+//
+//    string line;
+//    getline(ifs, line);
+//    ifs.close();
+//    cout << "line: " << line << endl;
+//    return 0;
+//}
+//bool OpenFileForSequentialInput(ifstream& ifs, const std::string& fname)
+//{
+//    ifs.open(fname.c_str(), ios::in);
+//    if (! ifs.is_open()) {
+//        return false;
+//    }
+//
+//    using FilebufType = __gnu_cxx::stdio_filebuf<std::ifstream::char_type>;
+//    static_assert(  std::is_base_of<ifstream::__filebuf_type, FilebufType>::value &&
+//                    (sizeof(FilebufType) == sizeof(ifstream::__filebuf_type)),
+//            "The filebuf type appears to have extra data members, the cast might be unsafe");
+//
+//    const int fd = static_cast<FilebufType*>(ifs.rdbuf())->fd();
+//    assert(fd >= 0);
+//    if (0 != posix_fadvise(fd, 0, 0, POSIX_FADV_SEQUENTIAL)) {
+//        ifs.close();
+//        return false;
+//    }
+//
+//    return true;
+//}
 
-class JsonDb
-{
-public:
-    JsonDb();
-    ~JsonDb(){}
+//template <typename T>
+//size_t hash(){
+//   return typeid(T).hash_code();
+//}
 
-    // Set the DB base folder.
-    void setBasePath(const std::string& basePath);
+struct JsonDbConfig {
+   // Set the DB base folder. Default to "./data".
+   std::string basePath;
 
-    // Set the decoding option. Only required if you imported data manually.
-    void setDecodingOption(json::DecodingOption decodingFlags);
+   /*
+    * Function used to write the data.
+    * Overwrite to configure the Decoding option.
+    * By default, use the more efficient bson format, allowing null value.
+    */
+   std::function<void(const json::Json& data, std::ostream& out)> write;
 
-    void setFormat(json::StreamFormat format);
+   /*
+    * Function used to read the data.
+    * Overwrite to configure the Decoding option.
+    * By default, use the more efficient bson format, allowing null value.
+    */
+   std::function<json::Json(std::istream& in)> read;
 
-    // FIXME : mark idx as not yet available, or cache idx and add an update function.
-    void addIndex(const std::string& clas, const std::string& path, bool unique = false, bool caseSensitive = false);
-    void setId(const std::string& clas, json::Json_t defaultValue, bool caseSensitive = false);
+   /*
+    * Function used to extract the data.
+    * Overwrite to configure the Decoding option.
+    * By default, use the more efficient bson format, allowing null value.
+    */
+   std::function<std::vector<json::Json>(std::istream& in, const std::string& path)> extract;
+};
 
-    // Flush all index and reload all of them.
-    void scanIndex();
+struct JsonDb{
+   JsonDbConfig config;
 
-    void save(const std::string& clas, json::Json_t id, json::Json_t json);
-    size_t count(const std::string& clas);
-    size_t countConditionnal(const std::string& clas, const jsondb::Clause& where);
-    json::Json_t load(const std::string& clas, json::Json_t id);
-    std::vector<json::Json_t> loadAll(std::string clas, Sort = Sort());
-    std::vector<json::Json_t> loadConditionnal(const std::string& clas, const Clause& where, Sort = Sort());
-    void remove(const std::string& clas, json::Json_t id);
-    void remove(const std::string& clas, const jsondb::Clause& where);
+   std::optional<json::Json> load(const std::string& className, const json::Json& id) const ;
+   Query find(const std::string& className) const;
+   void save(const std::string& className, const json::Json& id, const json::Json& json) const;
 
-    inline const std::string& getBasePath() const { return _basepath;}
-    inline const elladan::VMap<std::string, elladan::VMap<std::string, std::shared_ptr<Index>>>& getIndex() const { return _indexes;}
-
-    // Get only part of the document.
-    std::vector<json::Json_t> extract(const std::string& clas, json::Json_t id, const std::string& path);
-
-    // Lock a file. Good only for intra-process locking.
-    void getLock(const std::string& filename);
-
-    // Release a previously locked file.
-    void releaseLock(const std::string& filename);
-
-    std::shared_ptr<IdIndex> getIdGen(const std::string& clas);
-    json::Json_t genId(const std::string& clas);
 
 protected:
-    std::set<std::string> _fileLock;
-    std::mutex _fileMutex;
-    std::condition_variable _fileCond;
-
-    std::string _basepath;
-    json::StreamFormat _format;
-    json::DecodingOption _decodingOption;
-
-    // A map of class and its indexed path.
-    // Used to index queries.
-    elladan::VMap<std::string, elladan::VMap<std::string, std::shared_ptr<Index>>> _indexes;
-
+   friend struct Query;
 };
+
+
 
 } } // namespace elladan::jsondb

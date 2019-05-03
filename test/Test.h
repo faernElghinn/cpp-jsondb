@@ -14,8 +14,6 @@
 #define EXE_TEST(func) do { std::string str = func; if (!str.empty()){ valid = false; printf("Test " #func  " failed : %s\n", str.c_str());} } while (0)
 
 using namespace elladan;
-using namespace elladan::json;
 using namespace elladan::jsondb;
-
 
 #endif /* TEST_TEST_H_ */

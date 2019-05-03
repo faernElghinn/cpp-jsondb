@@ -1,181 +1,84 @@
-/*
- * Clause.h
- *
- *  Created on: May 23, 2017
- *      Author: daniel
- */
-
 #pragma once
 
 #include <elladan/json/json.h>
-#include <set>
+#include <initializer_list>
 #include <string>
 #include <vector>
 
 namespace elladan {
 namespace jsondb {
 
-class JsonDb;
-class AndClause;
-class OrClause;
-class CmpClause;
-class ExistClause;
+struct Relative;
 
-typedef std::set<json::Json_t, json::cmpJson> JsonTSet;
+struct Clause {
+   enum Type {
+      NONE,    //< Always true.
 
-class Clause {
-public:
+      // Node compare.
+      LT,      //< Less than
+      LTE,     //< Less than equals
+      EQ,      //< Equals
+      NE,      //< Not Equals
+      GTE,     //< Greater than equals
+      GT,      //< Greater than
+
+      LEFT_RIGHT_CMP,
+
+      IN,      //< Within the target value
+      NOT_IN,  //< Without the target value
+
+      OR,      //< Must match any condition.
+      AND,     //< Must match all condition.
+      NOT,     //< Invert selected clause.
+
+      // Object / list specific
+//      INTERSECT,     //<
+//      EXIST,         //<
+
+      // Number modifier
+      MAX,        //< Maximum of list, as defined with the > operator.
+      MIN,        //< Minimum of list, as defined with the < operator.
+
+      // Text modifier
+      UPPERCASE,  //< std::toUpper(std::to_string(value))
+      LOWERCASE,  //< std::toLower(std::to_string(value))
+
+      CLAUSE_MAX,
+   };
+
    Clause() = default;
+   Clause(const Relative& left, Type type, const Relative& cmp);
+   Clause(Type, std::initializer_list<Relative>);
+   ~Clause() = default;
+   Clause(const Clause&) = default;
+   Clause(Clause&&) = default;
+   Clause& operator=(const Clause&) = default;
+   Clause& operator=(Clause&&) = default;
 
-   template <typename T>
-   Clause(T x) : _self(new model<T>(std::move(x))) {}
-
-   Clause(const Clause& x) : _self(x._self->copy()) {}
-   Clause(Clause&& x) noexcept = default;
-
-   Clause& operator=(const Clause& x) { Clause tmp(x); *this = std::move (tmp); return *this; }
-   Clause& operator=(Clause&& x) noexcept = default;
-
-   void filter(JsonTSet& resultSet, const std::string& clas, JsonDb& db) const
-   { if (_self.get()) _self->filter(resultSet, clas, db); }
-
-   bool filter(json::JsonObject_t root) const
-   { return !_self.get() || _self->filter(root); }
-
-private:
-   struct concept_t {
-      virtual ~concept_t() = default;
-      virtual concept_t* copy() const = 0;
-      virtual void filter(JsonTSet& resultSet, const std::string& clas, JsonDb& db) const = 0;
-      virtual bool filter(json::JsonObject_t root) const = 0;
-   };
-
-   template <typename T>
-   struct model : concept_t {
-      model(T x) : _data(std::move(x)) {}
-      concept_t* copy() const {return new model(*this); }
-      void filter(JsonTSet& resultSet, const std::string& clas, JsonDb& db) const {
-        _data.filter(resultSet, clas, db);
-      }
-      bool filter(json::JsonObject_t root) const {
-        return _data.filter(root);
-      }
-      T _data;
-   };
-
-   std::unique_ptr<concept_t> _self;
-};
-
-class AndClause
-{
-public:
-    AndClause() = default;
-    template <typename T>
-    AndClause* add(T&& c){
-       _clauses.emplace_back(Clause(c));
-       return this;
-    }
-
-    bool filter(json::JsonObject_t root) const ;
-    void filter(JsonTSet& resultSet, const std::string& clas, JsonDb& db) const;
-protected:
-    std::vector<Clause> _clauses;
-};
-
-class OrClause
-{
-public:
-    OrClause() = default;
-    template <typename T>
-    OrClause* add(T&& c){
-       _clauses.emplace_back(Clause(c));
-       return this;
-    }
-    bool filter(json::JsonObject_t root) const;
-    void filter(JsonTSet& resultSet, const std::string& clas, JsonDb& db) const;
-protected:
-    std::vector<Clause> _clauses;
-};
-
-
-class CmpClause
-{
-public:
-   enum Mode
-   {
-      NE, LT, LE, EQ, GE, GT
-   };
-
-   template <typename T>
-   CmpClause(Mode mode, const std::string& path, const T& value, bool caseSensitive = true) 
-   : CmpClause(path, mode, elladan::json::toJson(value), caseSensitive)
-   { }
-
-   CmpClause(const std::string& path, Mode mode, json::Json_t value, bool caseSensitive = true);
-   bool testRelation(json::Json_t value) const;
-   bool filter(json::JsonObject_t root) const;
-   void filter(JsonTSet& resultSet, const std::string& clas, JsonDb& db) const;
+   const json::Json& get(const Relative& value, const json::Json& json, json::Json& tmp) const;
+   const json::Json& getOneJson(const std::vector<Relative> toExtractToOne, const json::Json& element, json::Json& tmp) const;
+   bool filter(const std::string& id, const json::Json& element) const;
 
 protected:
-   json::Json_t _expected;
-   std::string _path;
-   Mode _mode;
-   bool _caseSensitive;
+   Type type = NONE;
+   std::vector<Relative> lhs;
+   std::vector<Relative> rhs;
+
+   mutable  json::Json lhsTmp;
+   mutable  json::Json rhsTmp;
 };
 
-class ExistClause
-{
-public:
-   ExistClause(const std::string& path);
-   bool filter(json::JsonObject_t root) const;
-   void filter(JsonTSet& resultSet, const std::string& clas, JsonDb& db) const;
-protected:
-   std::string _path;
+struct Relative {
+   json::Json json;
+   std::string str;
+   Clause cla;
+   enum Val { NO_VALUE, JSON, STR, CLAUSE } type;
+   Relative() : type(NO_VALUE) { }
+   Relative(const json::Json& js)  : type(JSON)   { this->json = js;    }
+   Relative(const std::string& st) : type(STR)    { this->str = st;     }
+   Relative(const Clause& clause)  : type(CLAUSE) { this->cla = clause; }
 };
 
 
-
-//class Clause
-//{
-//protected:
-//    Clause(){}
-//    virtual ~Clause(){}
-//public:
-//    static std::shared_ptr<AndClause> And();
-//    static std::shared_ptr<OrClause> Or();
-//    static std::shared_ptr<Clause> Exist(const std::string& path);
-//    static std::shared_ptr<Clause> CmpLT(const std::string& path, elladan::json::Json_t value, bool caseSensitive = true);
-//    static std::shared_ptr<Clause> CmpLE(const std::string& path, elladan::json::Json_t value, bool caseSensitive = true);
-//    static std::shared_ptr<Clause> CmpEQ(const std::string& path, elladan::json::Json_t value, bool caseSensitive = true);
-//    static std::shared_ptr<Clause> CmpNE(const std::string& path, elladan::json::Json_t value, bool caseSensitive = true);
-//    static std::shared_ptr<Clause> CmpGE(const std::string& path, elladan::json::Json_t value, bool caseSensitive = true);
-//    static std::shared_ptr<Clause> CmpGT(const std::string& path, elladan::json::Json_t value, bool caseSensitive = true);
-//
-//    // Return true if the element match the filter condition.
-//    virtual bool filter(json::JsonObject_t root) const = 0;
-//    virtual void filter(JsonTSet& resultSet, const std::string& clas, JsonDb& db) const = 0;
-//};
-//
-//class AndClause: public Clause
-//{
-//public:
-//    AndClause();
-//    AndClause* add(std::shared_ptr<Clause>&& c);
-//    bool filter(json::JsonObject_t root) const ;
-//    void filter(JsonTSet& resultSet, const std::string& clas, JsonDb& db) const;
-//protected:
-//    std::vector<std::shared_ptr<Clause> > _clauses;
-//};
-//
-//class OrClause: public Clause
-//{
-//public:
-//    OrClause();
-//    OrClause* add(std::shared_ptr<Clause>&& c);
-//    bool filter(json::JsonObject_t root) const;
-//    void filter(JsonTSet& resultSet, const std::string& clas, JsonDb& db) const;
-//protected:
-//    std::vector<std::shared_ptr<Clause> > _clauses;
-//};
 
 } } // namespace elladan::jsondb
