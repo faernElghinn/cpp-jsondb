@@ -139,8 +139,7 @@ static std::string test_json_search(){
     db.setId(tableName, elladan::json::toJson(UUID().toString()));
     db.scanIndex();
 
-    Clause cla(CmpClause(CmpClause::EQ, "/id", json::toJson(id)));
-    auto res = db.loadConditionnal(tableName, &cla);
+    auto res = db.loadConditionnal(tableName, CmpClause(CmpClause::EQ, "/id", json::toJson(id)));
     if (res.size() != 1)
         retVal += "\n Could not find idx";
 
@@ -155,7 +154,7 @@ static std::string test_json_sort(){
     db.scanIndex();
 
     Sort sort("/id", true);
-    auto res = db.loadConditionnal(tableName, nullptr, sort);
+    auto res = db.loadConditionnal(tableName, Clause(), sort);
 
     auto last = UUID();
     for (auto ite : res) {

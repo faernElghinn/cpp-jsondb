@@ -282,7 +282,7 @@ public:
       WriteAction subAction(std::make_shared<json::JsonObject>());
       subAction.path += path + name + "/";
       ele.persist(subAction);
-      validateDoc("persist")->value[name] = subAction.doc;
+      asDoc("persist")->value[name] = subAction.doc;
    }
 
    // Maps of value with persist
@@ -290,7 +290,7 @@ public:
    typename std::enable_if_t<is_map<T>::value && has_persist<typename T::mapped_type>::value>
    doAction(T& ele, const std::string& name) {
       json::JsonObject_t obj = std::make_shared<json::JsonObject>();
-      validateDoc("persist map")->value[name] = obj;
+      asDoc("persist map")->value[name] = obj;
 
       for (auto& ite : ele) {
          WriteAction subAction(std::make_shared<json::JsonObject>());
@@ -306,7 +306,7 @@ public:
    typename std::enable_if_t<is_map<T>::value && !has_persist<typename T::mapped_type>::value>
    doAction(T& ele, const std::string& name) {
       json::JsonObject_t obj = std::make_shared<json::JsonObject>();
-      validateDoc("map")->value[name] = obj;
+      asDoc("map")->value[name] = obj;
 
       for (auto& ite : ele)
          obj->value[to_string(ite.first)] = json::toJson(ite.second);
@@ -317,7 +317,7 @@ public:
    typename std::enable_if_t<is_vmap<T>::value && has_persist<typename T::value_type>::value>
    doAction(T& ele, const std::string& name) {
       json::JsonObject_t obj = std::make_shared<json::JsonObject>();
-      validateDoc("persist map")->value[name] = obj;
+      asDoc("persist map")->value[name] = obj;
 
       for (auto& ite : ele) {
          WriteAction subAction(std::make_shared<json::JsonObject>());
@@ -333,7 +333,7 @@ public:
    typename std::enable_if_t<is_vmap<T>::value && !has_persist<typename T::value_type>::value>
    doAction(T& ele, const std::string& name) {
       json::JsonObject_t obj = std::make_shared<json::JsonObject>();
-      validateDoc("map")->value[name] = obj;
+      asDoc("map")->value[name] = obj;
 
       for (auto& ite : ele)
          obj->value[to_string(ite.first)] = json::toJson(ite.second);
@@ -344,7 +344,7 @@ public:
    typename std::enable_if_t<(is_vector<T>::value) && has_persist<typename T::value_type>::value>
    doAction(T& ele, const std::string& name) {
       json::JsonArray_t array = std::make_shared<json::JsonArray>();
-      validateDoc("persist array")->value[name] = array;
+      asDoc("persist array")->value[name] = array;
 
       for (auto& ite : ele) {
          WriteAction subAction(std::make_shared<json::JsonObject>());
@@ -359,7 +359,7 @@ public:
    typename std::enable_if_t<(is_vector<T>::value) && !has_persist<typename T::value_type>::value>
    doAction(T& ele, const std::string& name) {
       json::JsonArray_t obj = std::make_shared<json::JsonArray>();
-      validateDoc("array")->value[name] = obj ;
+      asDoc("array")->value[name] = obj ;
       for (auto ite : ele)
          obj->value.push_back(json::toJson(ite));
    }
@@ -369,7 +369,7 @@ public:
    typename std::enable_if_t<(is_set<T>::value) && has_persist<typename T::value_type>::value>
    doAction(T& ele, const std::string& name) {
       json::JsonArray_t array = std::make_shared<json::JsonArray>();
-      validateDoc("persist array")->value[name] = array;
+      asDoc("persist array")->value[name] = array;
 
       for (auto ite : ele) {
          WriteAction subAction(std::make_shared<json::JsonObject>());
@@ -384,7 +384,7 @@ public:
    typename std::enable_if_t<(is_set<T>::value) && !has_persist<typename T::value_type>::value>
    doAction(T& ele, const std::string& name) {
       json::JsonArray_t obj = std::make_shared<json::JsonArray>();
-      validateDoc("array")->value[name] = obj ;
+      asDoc("array")->value[name] = obj ;
       for (auto ite : ele)
          obj->value.push_back(json::toJson(ite));
    }
@@ -400,7 +400,7 @@ public:
    template<typename T>
    typename std::enable_if_t<!(is_map<T>::value || is_vmap<T>::value || has_persist<T>::value || is_set<T>::value || is_vector<T>::value || std::is_enum<T>::value)>
    doAction(T& ele, const std::string& name) {
-      validateDoc("default")->value[name] = json::toJson(ele);
+      asDoc("default")->value[name] = json::toJson(ele);
    }
 
    template<typename T>
@@ -413,7 +413,7 @@ public:
    std::string path;
 
 private:
-   inline json::JsonObject_t validateDoc(const std::string& error) {
+   inline json::JsonObject_t asDoc(const std::string& error) {
       if (!doc || doc->getType() != json::JSON_OBJECT)
          throw Exception("Invalid " + error + " write - " + path + " is not an object");
       return std::dynamic_pointer_cast<json::JsonObject>(doc);

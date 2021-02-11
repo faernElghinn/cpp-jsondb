@@ -12,8 +12,8 @@
 #include <string>
 #include <vector>
 
-namespace elladan {
-namespace jsondb {
+namespace elladan{
+namespace jsondb{
 
 class JsonDb;
 class AndClause;
@@ -23,117 +23,135 @@ class ExistClause;
 
 typedef std::set<json::Json_t, json::cmpJson> JsonTSet;
 
-class Clause {
-public:
-   Clause() = default;
+struct ClauseIf {
+   virtual ~ClauseIf() = default;
+   virtual void filter(JsonTSet &resultSet, const std::string &clas, JsonDb &db) const = 0;
+   virtual bool filter(json::JsonObject_t root) const = 0;
+};
 
-   template <typename T>
-   Clause(T x) : _self(new model<T>(std::move(x))) {}
+struct NoneClause : public ClauseIf {
+   void filter(JsonTSet &resultSet, const std::string &clas, JsonDb &db) const;
+   bool filter(json::JsonObject_t root) const;
+};
 
-   Clause(const Clause& x) : _self(x._self->copy()) {}
-   Clause(Clause&& x) noexcept = default;
+class Clause
+{
+ public:
+   Clause();
+   template<typename T> Clause(T& x) : _self(new model<T>(std::move(x))) {}
+   template<typename T> Clause(T&& x) : _self(new model<T>(std::move(x))) {}
+   Clause(const Clause &x) : _self(x._self->copy()) {}
+   Clause(Clause &&x) noexcept = default;
 
-   Clause& operator=(const Clause& x) { Clause tmp(x); *this = std::move (tmp); return *this; }
-   Clause& operator=(Clause&& x) noexcept = default;
+   Clause& operator=(const Clause &x);
+   Clause& operator=(Clause &&x) noexcept = default;
 
-   void filter(JsonTSet& resultSet, const std::string& clas, JsonDb& db) const
-   { if (_self.get()) _self->filter(resultSet, clas, db); }
+   void filter(JsonTSet &resultSet, const std::string &clas, JsonDb &db) const;
+   bool filter(json::JsonObject_t root) const;
 
-   bool filter(json::JsonObject_t root) const
-   { return !_self.get() || _self->filter(root); }
-
-private:
-   struct concept_t {
+ private:
+   struct concept_t : public ClauseIf
+   {
       virtual ~concept_t() = default;
-      virtual concept_t* copy() const = 0;
-      virtual void filter(JsonTSet& resultSet, const std::string& clas, JsonDb& db) const = 0;
-      virtual bool filter(json::JsonObject_t root) const = 0;
+      virtual concept_t *copy() const = 0;
    };
 
    template <typename T>
-   struct model : concept_t {
-      model(T x) : _data(std::move(x)) {}
-      concept_t* copy() const {return new model(*this); }
-      void filter(JsonTSet& resultSet, const std::string& clas, JsonDb& db) const {
-        _data.filter(resultSet, clas, db);
+   struct model : concept_t
+   {
+      model(T x) : _data(std::move(x)), _validator(_data) {}
+      concept_t *copy() const { return new model(*this); }
+      void filter(JsonTSet &resultSet, const std::string &clas, JsonDb &db) const
+      {
+         _data.filter(resultSet, clas, db);
       }
-      bool filter(json::JsonObject_t root) const {
-        return _data.filter(root);
+      bool filter(json::JsonObject_t root) const
+      {
+         return _data.filter(root);
       }
       T _data;
+      ClauseIf& _validator;
    };
 
    std::unique_ptr<concept_t> _self;
 };
 
-class AndClause
+class AndClause : public ClauseIf
 {
-public:
-    AndClause() = default;
-    template <typename T>
-    AndClause* add(T&& c){
-       _clauses.emplace_back(Clause(c));
-       return this;
-    }
+ public:
+   AndClause() = default;
+   template <typename T>
+   AndClause *add(T &&c)
+   {
+      _clauses.emplace_back(Clause(c));
+      return this;
+   }
 
-    bool filter(json::JsonObject_t root) const ;
-    void filter(JsonTSet& resultSet, const std::string& clas, JsonDb& db) const;
-protected:
-    std::vector<Clause> _clauses;
+   bool filter(json::JsonObject_t root) const;
+   void filter(JsonTSet &resultSet, const std::string &clas, JsonDb &db) const;
+
+ protected:
+   std::vector<Clause> _clauses;
 };
 
-class OrClause
+class OrClause : public ClauseIf
 {
-public:
-    OrClause() = default;
-    template <typename T>
-    OrClause* add(T&& c){
-       _clauses.emplace_back(Clause(c));
-       return this;
-    }
-    bool filter(json::JsonObject_t root) const;
-    void filter(JsonTSet& resultSet, const std::string& clas, JsonDb& db) const;
-protected:
-    std::vector<Clause> _clauses;
+ public:
+   OrClause() = default;
+   template <typename T>
+   OrClause *add(T &&c)
+   {
+      _clauses.emplace_back(Clause(c));
+      return this;
+   }
+   bool filter(json::JsonObject_t root) const;
+   void filter(JsonTSet &resultSet, const std::string &clas, JsonDb &db) const;
+
+ protected:
+   std::vector<Clause> _clauses;
 };
 
-
-class CmpClause
+class CmpClause : public ClauseIf
 {
-public:
+ public:
    enum Mode
    {
-      NE, LT, LE, EQ, GE, GT
+      NE,
+      LT,
+      LE,
+      EQ,
+      GE,
+      GT
    };
 
    template <typename T>
-   CmpClause(Mode mode, const std::string& path, const T& value, bool caseSensitive = true) 
-   : CmpClause(path, mode, elladan::json::toJson(value), caseSensitive)
-   { }
+   CmpClause(Mode mode, const std::string &path, const T &value, bool caseSensitive = true)
+       : CmpClause(path, mode, elladan::json::toJson(value), caseSensitive)
+   {
+   }
 
-   CmpClause(const std::string& path, Mode mode, json::Json_t value, bool caseSensitive = true);
+   CmpClause(const std::string &path, Mode mode, json::Json_t value, bool caseSensitive = true);
    bool testRelation(json::Json_t value) const;
    bool filter(json::JsonObject_t root) const;
-   void filter(JsonTSet& resultSet, const std::string& clas, JsonDb& db) const;
+   void filter(JsonTSet &resultSet, const std::string &clas, JsonDb &db) const;
 
-protected:
+ protected:
    json::Json_t _expected;
    std::string _path;
    Mode _mode;
    bool _caseSensitive;
 };
 
-class ExistClause
+class ExistClause : public ClauseIf
 {
-public:
-   ExistClause(const std::string& path);
+ public:
+   ExistClause(const std::string &path);
    bool filter(json::JsonObject_t root) const;
-   void filter(JsonTSet& resultSet, const std::string& clas, JsonDb& db) const;
-protected:
+   void filter(JsonTSet &resultSet, const std::string &clas, JsonDb &db) const;
+
+ protected:
    std::string _path;
 };
-
-
 
 //class Clause
 //{
@@ -178,4 +196,5 @@ protected:
 //    std::vector<std::shared_ptr<Clause> > _clauses;
 //};
 
-} } // namespace elladan::jsondb
+} // namespace jsondb
+} // namespace elladan

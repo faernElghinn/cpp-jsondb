@@ -44,7 +44,7 @@ public:
            toDeserializeList.emplace_back(_ctl.load(_classPath, _id));
        else
            // Load all item.
-           toDeserializeList = _ctl.loadConditionnal(_classPath, &_clause, _sort);
+           toDeserializeList = _ctl.loadConditionnal(_classPath, _clause, _sort);
 
        std::vector<C> retVal;
        for (auto ite : toDeserializeList)
@@ -68,21 +68,14 @@ public:
         }
         else {
             // Load all json.
-            for (auto ite : _ctl.loadConditionnal(_classPath, &_clause, _sort))
+            for (auto ite : _ctl.loadConditionnal(_classPath, _clause, _sort))
                 return deserial(std::dynamic_pointer_cast<json::JsonObject>(ite));
         }
         return C ();
     }
 
     size_t count() {
-        size_t retVal;
-
-        // if (_clause))
-            retVal = _ctl.countConditionnal(_classPath, &_clause);
-        // else
-        //     retVal = (_ctl.count(_classPath, _id));
-            
-        return retVal;
+        return _ctl.countConditionnal(_classPath, _clause);
     }
 
 

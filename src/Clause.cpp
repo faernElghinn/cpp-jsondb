@@ -23,7 +23,29 @@ namespace jsondb {
 
 
 
+void NoneClause::filter(JsonTSet &resultSet, const std::string &clas, JsonDb &db) const {}
+bool NoneClause::filter(json::JsonObject_t root) const { return true; }
 
+Clause::Clause() 
+: _self(new model<NoneClause>(NoneClause())) 
+{ }
+
+Clause& Clause::operator=(const Clause &x)
+{
+   Clause tmp(x);
+   *this = std::move(tmp);
+   return *this;
+}
+void Clause::filter(JsonTSet &resultSet, const std::string &clas, JsonDb &db) const
+{
+   if (_self.get())
+      _self->filter(resultSet, clas, db);
+}
+
+bool Clause::filter(json::JsonObject_t root) const
+{
+   return !_self.get() || _self->filter(root);
+}
 
 //AndClause::AndClause() : Clause() {
 //}
